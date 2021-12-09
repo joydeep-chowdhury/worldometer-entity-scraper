@@ -1,0 +1,1 @@
+# worldometer-entity-scraper
