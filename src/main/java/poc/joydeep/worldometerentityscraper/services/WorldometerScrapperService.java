@@ -22,33 +22,26 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-
+@Service
 public class WorldometerScrapperService implements ScraperService {
-
-    private final WebDriver webDriver;
     private final WorldometerBusinessConfiguration worldometerBusinessConfiguration;
     private final SeleniumConfiguration seleniumConfiguration;
     private final CategoricalDataRepository categoricalDataRepository;
+    private WebDriver webDriver;
 
     public WorldometerScrapperService(WorldometerBusinessConfiguration worldometerBusinessConfiguration, SeleniumConfiguration seleniumConfiguration,
             CategoricalDataRepository categoricalDataRepository) {
         this.worldometerBusinessConfiguration = worldometerBusinessConfiguration;
         this.seleniumConfiguration = seleniumConfiguration;
         this.categoricalDataRepository = categoricalDataRepository;
+
         System.setProperty(seleniumConfiguration.getWebDriverType(), seleniumConfiguration.getWebDriverPath());
-        webDriver = new ChromeDriver();
-        webDriver.manage()
-                 .deleteAllCookies();
-        webDriver.manage()
-                 .window()
-                 .maximize();
-        webDriver.manage()
-                 .timeouts()
-                 .pageLoadTimeout(seleniumConfiguration.getWebDriverPageLoadTimeout(), TimeUnit.SECONDS);
+
     }
 
     @Override
     public void navigate() {
+        initializeBrowser();
         webDriver.navigate()
                  .to(worldometerBusinessConfiguration.getRootUrl());
         WebDriverWait wait = new WebDriverWait(webDriver, 20);
@@ -122,7 +115,20 @@ public class WorldometerScrapperService implements ScraperService {
             categoricalData.setCounters(counters);
             System.out.println(categoricalData);
             categoricalDataRepository.save(categoricalData);
+            webDriver.quit();
         }
 
+    }
+
+    private void initializeBrowser() {
+        webDriver = new ChromeDriver();
+        webDriver.manage()
+                 .deleteAllCookies();
+        webDriver.manage()
+                 .window()
+                 .maximize();
+        webDriver.manage()
+                 .timeouts()
+                 .pageLoadTimeout(seleniumConfiguration.getWebDriverPageLoadTimeout(), TimeUnit.SECONDS);
     }
 }

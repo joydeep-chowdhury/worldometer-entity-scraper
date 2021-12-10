@@ -44,12 +44,8 @@ public class ExcelReportWriterService implements ReportWriterService<Categorical
 
             FileOutputStream fileOut = new FileOutputStream(filePath);
             workbook.write(fileOut);
-//closing the Stream
             fileOut.close();
-//closing the workbook
             workbook.close();
-//prints the message on the console
-            System.out.println("Excel file has been generated successfully.");
         }
         catch (Exception exception){
             exception.printStackTrace();
