@@ -1,5 +1,5 @@
 package poc.joydeep.worldometerentityscraper.services;
 
 public interface ScraperService {
-    void navigate();
+    void scrape();
 }

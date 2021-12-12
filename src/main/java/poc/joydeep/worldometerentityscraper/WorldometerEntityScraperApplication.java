@@ -16,22 +16,9 @@ import java.util.List;
 @SpringBootApplication
 @EnableScheduling
 public class WorldometerEntityScraperApplication {
-    @Autowired
-    private ReportWriterService<CategoricalData> reportWriterService;
-
-    @Autowired
-    private CategoricalDataRepository categoricalDataRepository;
 
     public static void main(String[] args) {
         SpringApplication.run(WorldometerEntityScraperApplication.class, args);
     }
-
-  /*  @PostConstruct
-    public void postInit(){
-        System.out.println("Hello");
-        List<CategoricalData> data = new ArrayList<>();
-        categoricalDataRepository.findAll().forEach(data::add);
-        reportWriterService.write(data);
-    }*/
 
 }

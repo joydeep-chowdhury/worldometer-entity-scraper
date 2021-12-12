@@ -9,6 +9,8 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import poc.joydeep.worldometerentityscraper.configurations.SeleniumConfiguration;
 import poc.joydeep.worldometerentityscraper.configurations.WorldometerBusinessConfiguration;
@@ -24,6 +26,9 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class WorldometerScrapperService implements ScraperService {
+    private static final Logger logger = LoggerFactory.getLogger(WorldometerScrapperService.class);
+    private static final Integer TIMEOUT_SECONDS = 20;
+    private static final String PAGE_AVAILABILITY_TEXT = "Current World Population";
     private final WorldometerBusinessConfiguration worldometerBusinessConfiguration;
     private final SeleniumConfiguration seleniumConfiguration;
     private final CategoricalDataRepository categoricalDataRepository;
@@ -40,12 +45,49 @@ public class WorldometerScrapperService implements ScraperService {
     }
 
     @Override
-    public void navigate() {
+    public void scrape() {
+        logger.info("Started scraping process");
+        navigate();
+        Map<String, List<Element>> contentsMap = extractDetails();
+        List<CategoricalData> categoricalDataList = formulateDomain(contentsMap);
+        persistCategoricalData(categoricalDataList);
+        webDriver.quit();
+        logger.info("Ended scraping process");
+    }
+
+    private void navigate() {
+        logger.info("Started navigation process...");
         initializeBrowser();
         webDriver.navigate()
                  .to(worldometerBusinessConfiguration.getRootUrl());
-        WebDriverWait wait = new WebDriverWait(webDriver, 20);
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.linkText("Current World Population")));
+        logger.info("Ended navigation process...");
+    }
+
+    private void initializeBrowser() {
+        logger.info("Initializing Chrome Browser");
+        webDriver = new ChromeDriver();
+        logger.info("Initialized Chrome Browser");
+        logger.info("Deleting all cookies from browser");
+        webDriver.manage()
+                 .deleteAllCookies();
+        logger.info("Deleted all cookies from browser");
+        logger.info("Maximizing Chrome Browser");
+        webDriver.manage()
+                 .window()
+                 .maximize();
+        logger.info("Maximized Chrome Browser");
+        webDriver.manage()
+                 .timeouts()
+                 .pageLoadTimeout(seleniumConfiguration.getWebDriverPageLoadTimeout(), TimeUnit.SECONDS);
+        logger.info("Setting page load timeout to {} seconds ", seleniumConfiguration.getWebDriverPageLoadTimeout());
+    }
+
+    private Map<String, List<Element>> extractDetails() {
+
+        logger.info("Scrapping categorical data");
+        WebDriverWait wait = new WebDriverWait(webDriver, TIMEOUT_SECONDS);
+
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.linkText(PAGE_AVAILABILITY_TEXT)));
         Document pageContents = Jsoup.parse(webDriver.getPageSource());
         Element counterDiv = pageContents.selectFirst("div[class=counterdiv]");
         Elements elements = counterDiv.select(
@@ -59,7 +101,6 @@ public class WorldometerScrapperService implements ScraperService {
                 titleElementsIndexList.add(elementIndex);
             }
         }
-        System.out.println(titleElementsIndexList);
         for (int titleElementIndex = 0; titleElementIndex < titleElementsIndexList.size(); titleElementIndex++) {
             if (titleElementIndex != (titleElementsIndexList.size() - 1)) {
                 int thisElementIndex = titleElementsIndexList.get(titleElementIndex);
@@ -68,9 +109,6 @@ public class WorldometerScrapperService implements ScraperService {
                 for (int i = thisElementIndex + 1; i < nextElementIndex; i++) {
                     contentsList.add(elements.get(i));
                 }
-                System.out.println(elements.get(thisElementIndex)
-                                           .text()
-                        + " --- " + contentsList.size());
                 contentsMap.put(elements.get(thisElementIndex)
                                         .text(),
                         contentsList);
@@ -80,15 +118,19 @@ public class WorldometerScrapperService implements ScraperService {
                 for (int i = thisElementIndex + 1; i < elements.size(); i++) {
                     contentsList.add(elements.get(i));
                 }
-                System.out.println(elements.get(thisElementIndex)
-                                           .text()
-                        + " --- " + contentsList.size());
                 contentsMap.put(elements.get(thisElementIndex)
                                         .text(),
                         contentsList);
             }
         }
+        logger.info("Scrapped categorical data");
 
+        return contentsMap;
+    }
+
+    private List<CategoricalData> formulateDomain(Map<String, List<Element>> contentsMap) {
+        logger.info("Formulating domain for persisting scrapped data map");
+        List<CategoricalData> categoricalDataList = new ArrayList<>();
         for (Map.Entry<String, List<Element>> entrySet : contentsMap.entrySet()) {
             CategoricalData categoricalData = new CategoricalData();
             categoricalData.setCategoryName(entrySet.getKey());
@@ -113,22 +155,21 @@ public class WorldometerScrapperService implements ScraperService {
 
                     });
             categoricalData.setCounters(counters);
-            System.out.println(categoricalData);
-            categoricalDataRepository.save(categoricalData);
-            webDriver.quit();
+            categoricalDataList.add(categoricalData);
+
         }
 
+        logger.info("Formulated domain for persisting scrapped data map");
+        return categoricalDataList;
     }
 
-    private void initializeBrowser() {
-        webDriver = new ChromeDriver();
-        webDriver.manage()
-                 .deleteAllCookies();
-        webDriver.manage()
-                 .window()
-                 .maximize();
-        webDriver.manage()
-                 .timeouts()
-                 .pageLoadTimeout(seleniumConfiguration.getWebDriverPageLoadTimeout(), TimeUnit.SECONDS);
+    private void persistCategoricalData(List<CategoricalData> categoricalDataList) {
+        logger.info("Started persistence of categorical data. No of items {}", categoricalDataList.size());
+        categoricalDataList.forEach(categoricalData -> {
+            categoricalDataRepository.save(categoricalData);
+            logger.info("Persisted categorical data {}", categoricalData);
+        });
+        logger.info("Ended persistence of categorical data");
     }
+
 }
